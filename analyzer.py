@@ -156,7 +156,7 @@ with st.sidebar:
     if api_key: st.success("🟢 API Connected")
     else: st.warning("⚪ Disconnected")
 
-st.title("✨ YouTube Master V21")
+st.title("✨ YouTube SEO V21")
 
 tab1, tab2 = st.tabs(["📝 Video Optimizer", "📊 Channel Intelligence"])
 
@@ -284,4 +284,5 @@ with tab2:
 
                 except Exception as e:
                     st.error(f"Error: {e}")
+
 
