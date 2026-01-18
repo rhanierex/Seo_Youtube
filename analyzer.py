@@ -6,7 +6,7 @@ import requests
 from googleapiclient.discovery import build
 
 # --- 1. CONFIG ---
-st.set_page_config(page_title="YouTube Master V21", page_icon="✨", layout="wide")
+st.set_page_config(page_title="YouTube SEO V21", page_icon="✨", layout="wide")
 
 # --- 2. DATABASE CONFIG ---
 URL_DATABASE_ONLINE = "https://gist.githubusercontent.com/rhanierex/f2d76f11df8d550376d81b58124d3668/raw/0b58a1eb02a7cffc2261a1c8d353551f3337001c/gistfile1.txt"
@@ -284,3 +284,4 @@ with tab2:
 
                 except Exception as e:
                     st.error(f"Error: {e}")
+
