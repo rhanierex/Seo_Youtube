@@ -5,8 +5,8 @@ import datetime
 import requests
 from googleapiclient.discovery import build
 
-# --- 1. CONFIG (WAJIB BARIS PERTAMA) ---
-st.set_page_config(page_title="YouTube Master V20", page_icon="✨", layout="wide")
+# --- 1. CONFIG ---
+st.set_page_config(page_title="YouTube Master V21", page_icon="✨", layout="wide")
 
 # --- 2. DATABASE CONFIG ---
 URL_DATABASE_ONLINE = "https://gist.githubusercontent.com/rhanierex/f2d76f11df8d550376d81b58124d3668/raw/0b58a1eb02a7cffc2261a1c8d353551f3337001c/gistfile1.txt"
@@ -29,12 +29,24 @@ def load_power_words(url):
 
 POWER_WORDS_DB, db_status = load_power_words(URL_DATABASE_ONLINE)
 
-# --- 4. CORE LOGIC ---
+# --- 4. CORE LOGIC (UPDATED V21) ---
+
+# Fungsi pemotong pintar (Hanya potong jika melebih batas tertentu)
+def smart_truncate(text, max_length):
+    text = text.strip()
+    if len(text) <= max_length:
+        return text
+    # Potong tapi sisakan "..."
+    return text[:max_length-3].rsplit(' ', 1)[0] + "..."
+
 def clean_title_text(title, keyword):
-    if not keyword: return title[:40]
+    if not keyword: return title
+    # Hapus keyword dari judul asli agar tidak duplikat
     pattern = re.compile(re.escape(keyword), re.IGNORECASE)
     clean = pattern.sub("", title).strip()
-    return clean[:45].rsplit(' ', 1)[0] + "..." if len(clean) > 45 else clean
+    # Bersihkan simbol di awal kalimat
+    clean = re.sub(r'^[:\-\|]\s*', '', clean)
+    return clean
 
 def generate_tags(title, keyword):
     clean_t = re.sub(r'[^\w\s]', '', title.lower())
@@ -53,11 +65,13 @@ def generate_description(title, keyword, tags):
 
 def generate_smart_suggestions(original_title, keyword, api_key=None):
     suggestions = []
-    core = clean_title_text(original_title, keyword) or "Video"
+    
+    # 1. Siapkan Variabel
     year = datetime.datetime.now().year
     emo = random.choice(VIRAL_EMOJIS)
     pwr = random.choice(POWER_WORDS_DB).upper()
     
+    # Ambil Power Word dari API (jika ada)
     if api_key:
         try:
             yt = build('youtube', 'v3', developerKey=api_key)
@@ -69,17 +83,47 @@ def generate_smart_suggestions(original_title, keyword, api_key=None):
                     if w.isupper() and len(w) > 3: pwr = w; break
         except: pass
 
-    suggestions.append(f"{keyword.title()}: {core} ({pwr} {year}) {emo}")
-    suggestions.append(f"{emo} {keyword.title()} {pwr}: {core} [{year}]")
-    suggestions.append(f"{core} - {keyword.title()} {emo} ({pwr} {year})")
+    # 2. Bersihkan Judul Asli (tanpa memotong dulu)
+    core = clean_title_text(original_title, keyword) or "Video"
+
+    # --- RUMUS 1: Standard SEO ---
+    # Template: "Keyword: {Core} ({Power} {Year}) {Emoji}"
+    # Hitung panjang elemen tambahan: Keyword + Power + Year + Emoji + Spasi/Simbol
+    extra_chars_1 = len(keyword) + len(pwr) + len(str(year)) + len(emo) + 10 
+    allowed_len_1 = 100 - extra_chars_1
+    final_core_1 = smart_truncate(core, allowed_len_1) # Potong Core Sesuai Sisa Ruang
+    
+    sug1 = f"{keyword.title()}: {final_core_1} ({pwr} {year}) {emo}"
+    suggestions.append(sug1)
+
+    # --- RUMUS 2: Clickbait Front ---
+    # Template: "{Emoji} {Keyword} {Power}: {Core} [{Year}]"
+    extra_chars_2 = len(keyword) + len(pwr) + len(str(year)) + len(emo) + 10
+    allowed_len_2 = 100 - extra_chars_2
+    final_core_2 = smart_truncate(core, allowed_len_2)
+    
+    sug2 = f"{emo} {keyword.title()} {pwr}: {final_core_2} [{year}]"
+    suggestions.append(sug2)
+
+    # --- RUMUS 3: Keyword Ending (Variation) ---
+    # Template: "{Core} - {Keyword} {Emoji} ({Power} {Year})"
+    extra_chars_3 = len(keyword) + len(pwr) + len(str(year)) + len(emo) + 10
+    allowed_len_3 = 100 - extra_chars_3
+    final_core_3 = smart_truncate(core, allowed_len_3)
+    
+    sug3 = f"{final_core_3} - {keyword.title()} {emo} ({pwr} {year})"
+    suggestions.append(sug3)
+
     return suggestions
 
 def analyze_title(title, keyword=""):
     score = 0
     checks = []
     
-    if 20 <= len(title) <= 85: score += 20; checks.append(("success", f"Length ({len(title)})"))
-    else: checks.append(("warning", f"Length ({len(title)})"))
+    # Length (Max 100)
+    if 20 <= len(title) <= 60: score += 20; checks.append(("success", f"Length Perfect ({len(title)})"))
+    elif len(title) <= 100: score += 15; checks.append(("warning", f"Length Good ({len(title)})"))
+    else: checks.append(("error", f"Too Long ({len(title)} > 100)"))
 
     if keyword:
         if keyword.lower() in title.lower():
@@ -112,7 +156,7 @@ with st.sidebar:
     if api_key: st.success("🟢 API Connected")
     else: st.warning("⚪ Disconnected")
 
-st.title("✨ YouTube Master V20")
+st.title("✨ YouTube Master V21")
 
 tab1, tab2 = st.tabs(["📝 Video Optimizer", "📊 Channel Intelligence"])
 
@@ -152,7 +196,7 @@ with tab1:
             
             # Recommendations
             if score < 100:
-                st.info("💡 **Rekomendasi Judul (Skor 100):**")
+                st.info("💡 **Rekomendasi Judul (Skor 100 & Smart Fit):**")
                 sugs = generate_smart_suggestions(title, keyword, api_key)
                 for s in sugs: st.code(s, language='text')
 
@@ -170,7 +214,7 @@ with tab1:
         else:
             st.error("Mohon isi Keyword dan Judul.")
 
-# --- TAB 2: CHANNEL AUDIT (FIXED UI) ---
+# --- TAB 2: CHANNEL AUDIT ---
 with tab2:
     st.markdown("### 📥 Channel Intelligence")
     c_a1, c_a2 = st.columns([3, 1])
@@ -193,20 +237,16 @@ with tab2:
                     stats = ch_info['statistics']
                     snippet = ch_info['snippet']
                     
-                    # 2. UI DASHBOARD (FIXED)
+                    # 2. UI DASHBOARD
                     st.markdown("---")
-                    
-                    # Layout Kolom
                     col_profile, col_metrics = st.columns([1, 4])
                     
                     with col_profile:
-                        # Menggunakan gambar 'high' resolution agar tidak pecah/broken
                         img_url = snippet['thumbnails'].get('high', snippet['thumbnails'].get('medium'))['url']
                         st.image(img_url, width=150)
                         st.markdown(f"**{snippet['title']}**")
                     
                     with col_metrics:
-                        # Menggunakan st.metric standar (Aman untuk Dark/Light Mode)
                         m1, m2, m3 = st.columns(3)
                         with m1: st.metric("Subscribers", f"{int(stats['subscriberCount']):,}")
                         with m2: st.metric("Total Views", f"{int(stats['viewCount']):,}")
@@ -226,7 +266,6 @@ with tab2:
                         guess_kw = v_title.split()[0] if v_title else "Video"
                         score, _ = analyze_title(v_title, guess_kw)
                         
-                        # Layout Card
                         with st.container():
                             c_img, c_body, c_score = st.columns([1, 4, 1])
                             with c_img: st.image(v_img, width=150)
